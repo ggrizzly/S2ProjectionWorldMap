@@ -2,6 +2,8 @@
 
 A static globe explorer with 75 map projections. No build step or framework is required.
 
+![Sphere projection explorer preview](assets/preview.gif)
+
 ## Run
 
 From this folder, start a local server:
@@ -19,6 +21,7 @@ Internet access is required for the pinned D3/Three.js libraries, world geometry
 - Search by projection name, family, or property, such as `butterfly`, `conformal`, or `equal-area`.
 - Select a result from the grouped selector. Enter selects the first search result. Escape clears the search.
 - Drag the globe to rotate all views. At 100% map zoom, dragging a map also rotates.
+- Rotation follows the grabbed surface point, at the current view size and zoom. Empty map space uses viewport-scaled rotation.
 - When a map is zoomed in, drag it to pan. Shift-drag rotates instead. Alt-drag always pans.
 - Use arrow keys in a focused view. On a zoomed map, arrows pan and Shift-arrows rotate.
 - Scroll over a map to zoom at the cursor. Each map has independent zoom and pan controls.

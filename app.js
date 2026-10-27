@@ -4,7 +4,7 @@ import * as extended from 'd3-geo-projection';
 import * as polyhedral from 'd3-geo-polygon';
 import { feature } from 'topojson-client';
 import { nextZoom, zoomedPan } from './view-state.js';
-import { canonicalProjection, createProjection, recommendedRotation, fitView, matchesProjection, SPHERE, CANONICAL_SIZE } from './projection-engine.js';
+import { canonicalProjection, createProjection, createInverter, recommendedRotation, fitView, matchesProjection, SPHERE, CANONICAL_SIZE } from './projection-engine.js';
 
 const libraries = { geo, extended, polyhedral };
 const response = await fetch('./projections.json');
@@ -94,14 +94,54 @@ function getRotation() {
   return [-lon / DEG, -lat / DEG, -Math.atan2(north.x, north.y) / DEG];
 }
 
-function rotate(dx, dy) {
-  const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -dx * 0.007);
-  const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -dy * 0.007);
+function rotateByAngles(yaw, pitch) {
+  const qy = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+  const qx = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
   sphere.quaternion.premultiply(qy).premultiply(qx).normalize();
   queueRender();
 }
 
-function makeInteractive(element, { zoom, drag = rotate, keyboard = rotate }) {
+function nudgeRotation(dx, dy) {
+  // Keyboard nudges have a fixed angular step. Pointer drags use surface picking instead.
+  rotateByAngles(dx * 0.4 * DEG, dy * 0.4 * DEG);
+}
+
+function rotateBetween(from, to) {
+  sphere.quaternion.premultiply(new THREE.Quaternion().setFromUnitVectors(from, to)).normalize();
+  queueRender();
+}
+
+function viewVector([longitude, latitude]) {
+  const lon = longitude * DEG, lat = latitude * DEG;
+  return new THREE.Vector3(Math.cos(lat) * Math.sin(lon), Math.sin(lat), Math.cos(lat) * Math.cos(lon));
+}
+
+const globeRaycaster = new THREE.Raycaster();
+const globeSurface = new THREE.Sphere(new THREE.Vector3(), 1);
+
+function globeDragPoint(clientX, clientY) {
+  const rect = globeStage.getBoundingClientRect();
+  const x = clientX - rect.left, y = clientY - rect.top;
+  if (!globeRenderer) {
+    const radius = Math.min(rect.width, rect.height) * 0.42 * globeZoom;
+    const sx = (x - rect.width / 2) / radius, sy = (rect.height / 2 - y) / radius;
+    return new THREE.Vector3(sx, sy, Math.sqrt(Math.max(0, 1 - sx * sx - sy * sy))).normalize();
+  }
+  camera.aspect = rect.width / rect.height;
+  camera.zoom = globeZoom;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld(true);
+  globeRaycaster.setFromCamera(new THREE.Vector2(x / rect.width * 2 - 1, 1 - y / rect.height * 2), camera);
+  const hit = globeRaycaster.ray.intersectSphere(globeSurface, new THREE.Vector3());
+  // Continue smoothly at the limb when the pointer leaves the visible disc.
+  return hit || globeRaycaster.ray.closestPointToPoint(globeSurface.center, new THREE.Vector3()).normalize();
+}
+
+function dragGlobe(dx, dy, event) {
+  rotateBetween(globeDragPoint(event.clientX - dx, event.clientY - dy), globeDragPoint(event.clientX, event.clientY));
+}
+
+function makeInteractive(element, { zoom, drag = dragGlobe, keyboard = nudgeRotation }) {
   let pointer = null;
   let previous;
   element.addEventListener('pointerdown', event => {
@@ -164,7 +204,10 @@ function renderGlobe() {
   }
   globeStage.dataset.zoom = String(globeZoom);
   document.getElementById('cycle-zoom').textContent = `${Math.round(globeZoom * 100)}%`;
-  const [lon, lat] = getRotation().map(value => Math.abs(value) < 1e-8 ? 0 : -value);
+  const rotation = getRotation();
+  globeStage.dataset.rotation = JSON.stringify(rotation);
+  globeStage.dataset.renderMode = globeRenderer ? 'webgl' : 'vector';
+  const [lon, lat] = rotation.map(value => Math.abs(value) < 1e-8 ? 0 : -value);
   document.getElementById('coordinates').textContent = `${Math.abs(lon).toFixed(1)}° ${lon < 0 ? 'W' : 'E'} · ${Math.abs(lat).toFixed(1)}° ${lat < 0 ? 'S' : 'N'}`;
 }
 
@@ -310,11 +353,11 @@ class MapView {
       drag: (dx, dy, event) => {
         activeView = this;
         if (!event.shiftKey && (this.zoom > 1 || event.altKey || event.buttons === 2)) this.panBy(dx, dy);
-        else rotate(dx, dy);
+        else this.rotateAtPointer(dx, dy, event);
       },
       keyboard: (dx, dy, event) => {
         if (this.zoom > 1 && !event.shiftKey) this.panBy(dx * 3, dy * 3);
-        else rotate(dx, dy);
+        else nudgeRotation(dx, dy);
       },
     });
     for (const button of this.panel.querySelectorAll('[data-zoom]')) {
@@ -365,6 +408,9 @@ class MapView {
     this.lookup = lookupCache.get(id) || null;
     this.canonical = canonicalProjection(definition, libraries);
     this.bounds = geo.geoPath(this.canonical).bounds(SPHERE);
+    this.dragInverter = null;
+    this.pickContext ||= document.createElement('canvas').getContext('2d');
+    this.pickOutline = new Path2D(geo.geoPath(this.canonical)(SPHERE));
     this.filter();
     this.panel.querySelector('.family').textContent = definition.family;
     this.panel.querySelector('.property').textContent = definition.property;
@@ -436,6 +482,34 @@ class MapView {
     this.pan = zoom <= 1 ? [0, 0] : zoomedPan(this.pan, this.zoom, zoom, [width / 2, height / 2], anchor);
     this.zoom = zoom;
     queueRender();
+  }
+
+  pickDirection(clientX, clientY) {
+    const rect = this.stage.getBoundingClientRect();
+    const fit = fitView(this.canonical, this.bounds, rect.width, rect.height, this.zoom, this.pan);
+    const x = (clientX - rect.left - fit.offset[0]) / fit.ratio;
+    const y = (clientY - rect.top - fit.offset[1]) / fit.ratio;
+    if (!this.pickContext.isPointInPath(this.pickOutline, x, y)) return null;
+    // This is one pointer sample, not per-pixel raster work. Cache the seeded inverter.
+    this.dragInverter ||= createInverter(this.canonical, this.definition.inverse, 1e-3);
+    const point = this.dragInverter(x, y);
+    return point ? viewVector(point) : null;
+  }
+
+  rotateAtPointer(dx, dy, event) {
+    const from = this.pickDirection(event.clientX - dx, event.clientY - dy);
+    const to = this.pickDirection(event.clientX, event.clientY);
+    if (from && to && from.dot(to) > 0.5) {
+      rotateBetween(from, to);
+      return;
+    }
+    // Empty space and disconnected cuts have no grabbed surface. Use the fitted
+    // map's pixel extent here, never a fixed sensitivity or a jump to another face.
+    const rect = this.stage.getBoundingClientRect();
+    const fit = fitView(this.canonical, this.bounds, rect.width, rect.height, this.zoom, this.pan);
+    const mapWidth = (this.bounds[1][0] - this.bounds[0][0]) * fit.ratio;
+    const mapHeight = (this.bounds[1][1] - this.bounds[0][1]) * fit.ratio;
+    rotateByAngles(dx * Math.PI * 2 / mapWidth, dy * Math.PI / mapHeight);
   }
 
   panBy(dx, dy) {

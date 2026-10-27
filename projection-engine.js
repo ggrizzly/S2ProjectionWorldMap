@@ -43,18 +43,18 @@ export function fitView(canonical, bounds, width, height, zoom = 1, pan = [0, 0]
   };
 }
 
-export function validInverse(projection, x, y) {
+export function validInverse(projection, x, y, tolerance = 0.75) {
   const point = projection.invert?.([x, y]);
   if (!point || !point.every(Number.isFinite) || Math.abs(point[1]) > 90 || Math.abs(point[0]) > 180 + 1e-5) return null;
   const roundTrip = projection(point);
-  if (!roundTrip || Math.hypot(roundTrip[0] - x, roundTrip[1] - y) > 0.75) return null;
+  if (!roundTrip || Math.hypot(roundTrip[0] - x, roundTrip[1] - y) > tolerance) return null;
   return point;
 }
 
 // Some polyhedral inverses converge to the wrong face. Nearby forward
 // samples give Newton's method a seed on the correct face of the unfolded map.
-export function createInverter(projection, strategy = 'native') {
-  if (strategy !== 'seeded') return (x, y) => validInverse(projection, x, y);
+export function createInverter(projection, strategy = 'native', tolerance = 0.75) {
+  if (strategy !== 'seeded') return (x, y) => validInverse(projection, x, y, tolerance);
   const cellSize = 16;
   const cells = new Map();
   for (let lat = -89; lat < 90; lat += 2) {
@@ -67,7 +67,7 @@ export function createInverter(projection, strategy = 'native') {
     }
   }
   return (x, y) => {
-    const native = validInverse(projection, x, y);
+    const native = validInverse(projection, x, y, tolerance);
     if (native) return native;
     const cx = Math.floor(x / cellSize), cy = Math.floor(y / cellSize);
     const candidates = [];

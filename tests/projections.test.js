@@ -8,6 +8,14 @@ import { canonicalProjection, createInverter, createProjection, fitView, recomme
 
 import { nextZoom, zoomedPan } from '../view-state.js';
 
+test('pointer picking can demand tighter inverse accuracy than raster sampling', () => {
+  const projection = ([lon, lat]) => [lon + 0.25, lat];
+  projection.invert = () => [0, 0];
+  assert.deepEqual(validInverse(projection, 0, 0), [0, 0]);
+  assert.equal(validInverse(projection, 0, 0, 1e-3), null);
+  assert.equal(createInverter(projection, 'native', 1e-3)(0, 0), null);
+});
+
 test('zoom presets cycle through 100, 200, 400, 800 percent and wrap', () => {
   assert.deepEqual([1, 2, 4, 8].map(nextZoom), [2, 4, 8, 1]);
   assert.equal(nextZoom(1.2), 2);
