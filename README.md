@@ -1,4 +1,4 @@
-# Sphere — A projection atlas
+# Sphere: projection atlas
 
 A static globe explorer with 75 map projections. No build step or framework is required.
 
