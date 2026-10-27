@@ -1,0 +1,135 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b1119;
+  --panel: #101822;
+  --line: #26313d;
+  --ink: #e7e9e5;
+  --muted: #8a9aa9;
+  --accent: #c3dba4;
+  --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'Helvetica Neue', Helvetica, sans-serif; height: 100dvh; display: flex; flex-direction: column; }
+button, input, select { font: inherit; }
+button, select { cursor: pointer; }
+button { color: inherit; }
+button:disabled, select:disabled { cursor: default; opacity: .5; }
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+[hidden] { display: none !important; }
+.masthead { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 30px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 600; letter-spacing: .18em; color: var(--ink); text-decoration: none; }
+.brand-mark { color: var(--accent); font-size: 34px; font-weight: 400; line-height: 1; }
+.brand-caption { border-left: 1px solid var(--line); padding-left: 18px; margin-left: 10px; font: 11px var(--mono); color: var(--muted); letter-spacing: .02em; }
+.mode-switch { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 6px; }
+.mode-switch button { border: 0; border-radius: 3px; background: none; padding: 9px 15px; font-size: 12px; color: var(--muted); }
+.mode-switch button[aria-pressed='true'] { background: var(--accent); color: #172117; }
+.mode-switch button span { margin-left: 8px; }
+#workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: 43% 57%; }
+#sphere-panel { position: relative; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: radial-gradient(ellipse at 48% 57%, #192634 0, var(--bg) 67%); }
+.panel-heading { padding: 30px 32px 0; pointer-events: none; z-index: 1; }
+.eyebrow { font: 10px var(--mono); text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+h1 { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: clamp(25px, 2.7vw, 46px); line-height: 1.08; letter-spacing: -.04em; margin: 18px 0 12px; }
+.panel-heading p { color: var(--muted); font-size: 12px; margin: 0; }
+#globe-stage { flex: 1; min-height: 0; width: 100%; position: relative; }
+#globe-stage canvas { display: block; width: 100%; height: 100%; }
+#globe-stage, .map-stage { cursor: grab; touch-action: none; }
+#globe-stage:active, .map-stage:active { cursor: grabbing; }
+.globe-footer { min-height: 56px; display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: space-between; align-items: center; padding: 12px 30px; font: 10px var(--mono); color: var(--muted); }
+.orientation-lock { display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+.orientation-lock input { accent-color: var(--accent); width: 12px; height: 12px; margin: 0; }
+#cycle-zoom { background: none; border: 1px solid var(--line); border-radius: 3px; color: var(--accent); font: 10px var(--mono); padding: 5px 7px; }
+.map-stage[data-interaction='pan'] { cursor: move; }
+#reset-view { background: none; border: 0; font: 11px var(--mono); color: var(--accent); padding: 7px 0; }
+#maps { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
+.map-panel { min-height: 0; min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--panel); }
+.projection-controls { padding: 25px 28px 16px; border-bottom: 1px solid var(--line); }
+.selector-topline { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+.catalog-count { font: 10px var(--mono); color: var(--muted); }
+.search-field { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #3b4955; color: var(--muted); }
+.search-field > span { font-size: 24px; }
+.search-field input { width: 100%; min-width: 0; padding: 9px 0; color: var(--ink); background: none; border: 0; font-size: 12px; }
+.search-field input::placeholder { color: #8493a1; }
+.search-field input::-webkit-search-cancel-button { display: none; }
+.clear-search { border: 0; background: none; color: var(--muted); font-size: 22px; padding: 0 4px; }
+.projection-controls select { display: block; width: 100%; margin: 17px 0 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--panel); color: var(--ink); font-size: clamp(18px, 1.65vw, 26px); padding: 4px 22px 10px 0; }
+.projection-controls optgroup, .projection-controls option { background: var(--panel); font-size: 14px; }
+.projection-meta { display: flex; flex-wrap: wrap; gap: 7px; min-height: 22px; }
+.projection-meta span { border: 1px solid #34424f; border-radius: 3px; padding: 4px 7px; font: 9px var(--mono); color: #a6b4c0; }
+.projection-meta .property { border-color: #46533c; color: var(--accent); }
+.projection-description { font-size: 11px; line-height: 1.5; color: var(--muted); margin: 10px 0 0; }
+.map-stage { position: relative; flex: 1; min-height: 120px; overflow: hidden; }
+.map-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.map-texture { z-index: 0; }
+.map-overlay { z-index: 1; pointer-events: none; }
+.map-status { position: absolute; bottom: 16px; left: 0; right: 0; text-align: center; font: 10px var(--mono); color: var(--muted); pointer-events: none; z-index: 2; }
+.map-footer { min-height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 12px 28px; gap: 10px; }
+.render-mode { font: 9px var(--mono); color: var(--muted); letter-spacing: .08em; }
+.zoom-controls { display: flex; border: 1px solid var(--line); border-radius: 4px; }
+.zoom-controls button { min-width: 29px; padding: 5px 8px; background: none; border: 0; font: 11px var(--mono); }
+.zoom-controls button:hover, #reset-view:hover { color: white; }
+.zoom-controls button + button { border-left: 1px solid var(--line); }
+.page-footer { min-height: 40px; padding: 10px 30px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; gap: 16px; align-items: center; font: 9px var(--mono); color: var(--muted); }
+.page-footer > span:first-child { display: flex; gap: 9px; align-items: center; }
+.page-footer label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.page-footer input { accent-color: var(--accent); width: 12px; height: 12px; margin: 0; }
+.live-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+#workspace.comparing { grid-template-columns: 1fr; grid-template-rows: 190px minmax(0, 1fr); }
+.comparing #sphere-panel { width: 100%; border-bottom: 1px solid var(--line); align-items: center; flex-direction: row; justify-content: center; }
+.comparing .panel-heading { position: absolute; left: 30px; top: 30px; padding: 0; }
+.comparing h1 { font-size: 25px; margin: 12px 0 0; }
+.comparing .panel-heading p { display: none; }
+.comparing #globe-stage { flex: none; width: 180px; height: 180px; }
+.comparing .globe-footer { position: absolute; right: 30px; padding: 0; flex-direction: column; align-items: flex-end; }
+.comparing #maps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.comparing #map-a { border-left: 0; }
+.comparing .projection-controls { padding-top: 20px; }
+.comparing .projection-controls select { font-size: 21px; }
+#app-error, .fatal-message { position: fixed; bottom: 50px; left: 5%; width: 90%; z-index: 10; padding: 20px; border: 1px solid #b99067; background: #281e15; color: #f3d9bd; font-size: 14px; line-height: 1.6; }
+@media (max-width: 850px) {
+  .masthead { padding: 14px 18px; min-height: 68px; }
+  .brand-caption, .footer-credit { display: none; }
+  .panel-heading { padding: 24px 20px 0; }
+  .projection-controls { padding: 24px 18px 16px; }
+  .map-footer, .globe-footer { padding-left: 18px; padding-right: 18px; }
+  .page-footer { padding-left: 18px; padding-right: 18px; }
+  .comparing .panel-heading { left: 18px; }
+  .comparing .globe-footer { right: 18px; }
+}
+@media (max-width: 600px) {
+  body { height: auto; min-height: 100dvh; }
+  .masthead { gap: 12px; flex-wrap: wrap; }
+  .brand { font-size: 14px; gap: 6px; }
+  .brand-mark { font-size: 27px; }
+  .mode-switch button { font-size: 10px; padding: 8px; }
+  .mode-switch button span { display: none; }
+  #workspace { flex: none; grid-template-columns: 1fr; grid-template-rows: 260px auto; }
+  #sphere-panel { border-bottom: 1px solid var(--line); }
+  .panel-heading { position: absolute; top: 0; left: 0; padding: 20px; }
+  h1 { font-size: 24px; margin-top: 12px; }
+  .panel-heading p { display: none; }
+  #globe-stage { width: 230px; align-self: flex-end; margin-top: 15px; }
+  .globe-footer { min-height: 40px; padding-top: 0; padding-bottom: 8px; }
+  .map-panel { border-left: 0; }
+  .map-stage { min-height: 350px; }
+  .projection-controls { padding-top: 20px; }
+  .projection-controls select { font-size: 22px; }
+  #workspace.comparing { grid-template-rows: 180px auto; }
+  .comparing #globe-stage { width: 155px; height: 155px; align-self: center; margin: 0; }
+  .comparing .panel-heading { top: 16px; }
+  .comparing .panel-heading h1 { display: none; }
+  .comparing .panel-heading .eyebrow { font-size: 8px; }
+  .comparing .globe-footer { right: 12px; font-size: 8px; }
+  .comparing #maps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .comparing .projection-controls { padding: 16px 10px 10px; }
+  .comparing .selector-topline { flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .comparing .eyebrow, .comparing .catalog-count { font-size: 8px; }
+  .comparing .search-field { gap: 5px; }
+  .comparing .search-field input { font-size: 10px; }
+  .comparing .projection-controls select { font-size: 15px; margin-top: 12px; }
+  .comparing .projection-meta span { font-size: 8px; padding: 3px 5px; }
+  .comparing .map-stage { min-height: 320px; }
+  .comparing .map-footer { flex-direction: column; padding: 10px 4px; }
+  .comparing .projection-description { font-size: 10px; }
+  .comparing .map-status { padding: 0 5px; font-size: 8px; }
+  .page-footer { flex-wrap: wrap; font-size: 8px; padding: 12px; }
+}

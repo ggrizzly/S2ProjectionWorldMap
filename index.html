@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1119">
+  <title>Sphere — A projection atlas</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+  { "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "d3-geo": "https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/+esm",
+    "d3-geo-projection": "https://cdn.jsdelivr.net/npm/d3-geo-projection@4.0.0/+esm",
+    "d3-geo-polygon": "https://cdn.jsdelivr.net/npm/d3-geo-polygon@1.12.1/+esm",
+    "topojson-client": "https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm"
+  } }
+  </script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="./" aria-label="Sphere home"><span class="brand-mark" aria-hidden="true">◎</span> SPHERE <span class="brand-caption">A projection atlas</span></a>
+    <div class="mode-switch" role="group" aria-label="View mode">
+      <button id="single-mode" aria-pressed="true">Explore</button>
+      <button id="compare-mode" aria-pressed="false" aria-keyshortcuts="C" title="Toggle comparison (C)">Compare side by side <span aria-hidden="true">◫</span></button>
+    </div>
+  </header>
+
+  <main id="workspace" aria-label="Interactive projection explorer">
+    <section id="sphere-panel" aria-label="Shared interactive globe">
+      <div class="panel-heading"><span class="eyebrow">01 / The source</span><h1>One Earth.<br>Many perspectives.</h1><p>Turn the globe. See the world differently.</p></div>
+      <div id="globe-stage" tabindex="0" role="img" aria-label="Globe. Drag or use arrow keys to rotate; scroll to zoom."></div>
+      <div class="globe-footer"><span id="coordinates">20.0° E · 0.0° N</span><button id="cycle-zoom" aria-label="Cycle zoom levels" aria-keyshortcuts="Z" title="Zoom all views: 100%, 200%, 400%, 800% (Z)">100%</button><label class="orientation-lock" title="Preserve orientation when switching projections. Dragging can still rotate the globe."><input id="orientation-lock" type="checkbox"> Lock orientation</label><button id="reset-view" aria-label="Reset view" title="Reset orientation, zoom, and pan (R)" aria-keyshortcuts="R"><span aria-hidden="true">↺</span> Reset view</button></div>
+    </section>
+
+    <div id="maps">
+      <section class="map-panel" id="map-a" aria-label="First projection">
+        <div class="projection-controls">
+          <div class="selector-topline"><label class="eyebrow" for="search-a">02 / <span class="slot-label">The projection</span></label><span class="catalog-count">Loading catalog…</span></div>
+          <div class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="search-a" placeholder="Search projections, families, properties…" autocomplete="off" aria-controls="select-a"><button class="clear-search" type="button" aria-label="Clear first projection search" hidden>×</button></div>
+          <select id="select-a" aria-label="First projection" size="1" disabled><option>Loading projections…</option></select>
+          <div class="projection-meta"><span class="family"></span><span class="property"></span></div>
+          <p class="projection-description" hidden></p>
+        </div>
+        <div class="map-stage" tabindex="0" role="img" aria-label="First map. Drag or use arrows to rotate; when zoomed, drag or arrows pan. Shift-drag rotates. Alt-drag always pans. Scroll zooms at the cursor."><canvas class="map-overlay"></canvas><div class="map-status" role="status">Loading atlas…</div></div>
+        <div class="map-footer"><span class="render-mode">VECTOR PREVIEW</span><div class="zoom-controls" role="group" aria-label="First map zoom"><button data-zoom="out" aria-label="Zoom out first map">−</button><button data-zoom="reset" aria-label="Reset first map zoom">100%</button><button data-zoom="in" aria-label="Zoom in first map">+</button></div></div>
+      </section>
+      <section class="map-panel" id="map-b" aria-label="Second projection" hidden>
+        <div class="projection-controls">
+          <div class="selector-topline"><label class="eyebrow" for="search-b">03 / Projection B</label><span class="catalog-count">Loading catalog…</span></div>
+          <div class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="search-b" placeholder="Search projections, families, properties…" autocomplete="off" aria-controls="select-b"><button class="clear-search" type="button" aria-label="Clear second projection search" hidden>×</button></div>
+          <select id="select-b" aria-label="Second projection" size="1" disabled><option>Loading projections…</option></select>
+          <div class="projection-meta"><span class="family"></span><span class="property"></span></div>
+          <p class="projection-description" hidden></p>
+        </div>
+        <div class="map-stage" tabindex="0" role="img" aria-label="Second map. Drag or use arrows to rotate; when zoomed, drag or arrows pan. Shift-drag rotates. Alt-drag always pans. Scroll zooms at the cursor."><canvas class="map-overlay"></canvas><div class="map-status" role="status">Loading atlas…</div></div>
+        <div class="map-footer"><span class="render-mode">VECTOR PREVIEW</span><div class="zoom-controls" role="group" aria-label="Second map zoom"><button data-zoom="out" aria-label="Zoom out second map">−</button><button data-zoom="reset" aria-label="Reset second map zoom">100%</button><button data-zoom="in" aria-label="Zoom in second map">+</button></div></div>
+      </section>
+    </div>
+  </main>
+  <footer class="page-footer"><span><span class="live-dot" aria-hidden="true"></span><span id="interaction-hint">Drag either view to rotate · Scroll to zoom</span></span><label><input id="graticule-toggle" type="checkbox" aria-keyshortcuts="G" checked> Graticule</label><span class="footer-credit" title="D3 cartography · NASA Blue Marble">R reset · G grid · Z zoom · C compare</span></footer>
+  <div id="app-error" role="alert" hidden></div>
+  <noscript><p class="fatal-message">Enable JavaScript to explore the atlas.</p></noscript>
+  <script type="module">
+    import('./app.js').catch(error => {
+      console.error(error);
+      const message = document.getElementById('app-error');
+      message.hidden = false;
+      message.textContent = location.protocol === 'file:'
+        ? 'Open this app through a local server: run python3 -m http.server 8000 in this folder, then visit http://localhost:8000.'
+        : 'The atlas could not load. Check your internet connection (the map libraries load from jsDelivr), then reload.';
+    });
+  </script>
+</body>
+</html>
