@@ -5,13 +5,14 @@
   "scripts": {
     "start": "python3 -m http.server 8000 --bind 127.0.0.1",
     "test": "./scripts/test.sh",
-    "test:unit": "node --test tests/projections.test.js",
+    "test:unit": "node --test tests/*.test.js",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "d3-geo": "3.1.1",
+    "d3-geo-polygon": "1.12.1",
     "d3-geo-projection": "4.0.0",
-    "d3-geo-polygon": "1.12.1"
+    "yaml": "2.9.1"
   }
 }

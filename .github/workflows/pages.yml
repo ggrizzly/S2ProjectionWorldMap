@@ -1,0 +1,110 @@
+---
+name: Test and deploy Pages
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# PR/test jobs cannot deploy or request an OIDC token.
+permissions:
+  contents: read
+
+# Do not interrupt an in-flight Pages deployment.
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test-and-package:
+    name: Test and package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CI: "true"
+    steps:
+      # Official actions are pinned to verified full commit SHAs.
+      # actions/checkout v6
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      # actions/setup-node v6
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install locked test dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install Chromium and Linux browser dependencies
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Run the canonical test gate
+        run: ./scripts/test.sh
+
+      - name: Package only public website files
+        id: package
+        shell: bash
+        run: |
+          mkdir _site
+          cp index.html styles.css app.js projection-engine.js \
+            view-state.js texture-worker.js projections.json LICENSE _site/
+          mkdir _site/assets
+          cp assets/preview.gif _site/assets/preview.gif
+          touch _site/.nojekyll
+
+      # actions/upload-pages-artifact v4
+      - name: Upload Pages artifact
+        if: >-
+          github.event_name != 'pull_request' &&
+          github.ref == 'refs/heads/main'
+        uses: >-
+          actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        with:
+          path: _site
+          retention-days: 1
+
+  deploy:
+    name: Deploy Pages
+    needs: test-and-package
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # No checkout, npm commands, or user-supplied scripts in this privileged job.
+      # actions/configure-pages v5
+      - name: Configure Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b
+
+      # actions/deploy-pages v4
+      - name: Deploy tested artifact
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
+
+      - name: Verify the published site over HTTPS
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        shell: bash
+        run: |
+          case "$PAGE_URL" in
+            https://*) ;;
+            *) echo "Pages did not return an HTTPS URL" >&2; exit 1 ;;
+          esac
+          curl --fail --silent --show-error --location \
+            --proto '=https' --proto-redir '=https' --tlsv1.2 \
+            --retry 5 --retry-delay 3 --retry-all-errors \
+            --retry-max-time 90 --max-time 30 "$PAGE_URL" > /dev/null
