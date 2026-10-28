@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { selectProjection } from './projection-picker.js';
 
 async function ready(page) {
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
+  await expect(page.locator('#search-a')).toBeEnabled();
   await expect(page.locator('#globe-stage')).toHaveAttribute('data-rotation', /\[/);
 }
 
@@ -93,7 +94,7 @@ test('vector fallback globe also tracks cursor pixels', async ({ page }) => {
 test('grabbed map locations follow cursor pixels, including polyhedral and zoomed maps', async ({ page }) => {
   await ready(page);
   for (const [id, zoom] of [['mercator',1], ['naturalEarth',1], ['waterman',1], ['collignonButterfly',1], ['cahillKeyes',1], ['mercator',8], ['naturalEarth',8]]) {
-    await page.selectOption('#select-a', id);
+    await selectProjection(page, '#select-a', id);
     await zoomAll(page, zoom);
     const stage = page.locator('#map-a .map-stage');
     await expect(stage).toHaveAttribute('data-zoom', String(zoom));
@@ -137,7 +138,7 @@ test('grabbed map locations follow cursor pixels, including polyhedral and zoome
 
 test('dragging empty map space stays gradual and finite', async ({ page }) => {
   await ready(page);
-  await page.selectOption('#select-a', 'cahillKeyes');
+  await selectProjection(page, '#select-a', 'cahillKeyes');
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-render-mode', /vector|texture/);
   const rect = await page.locator('#map-a .map-stage').boundingBox();
   const before = await page.locator('#globe-stage').getAttribute('data-rotation');

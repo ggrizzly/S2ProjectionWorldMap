@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { selectProjection } from './projection-picker.js';
 
 for (const id of ['waterman', 'collignonButterfly']) {
   test(`${id}: texture follows diagonal edges, not rectangular lookup cells`, async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('#select-a')).toBeEnabled();
-    await page.selectOption('#select-a', id);
+    await expect(page.locator('#search-a')).toBeEnabled();
+    await selectProjection(page, '#select-a', id);
     const stage = page.locator('#map-a .map-stage');
     await expect(stage).toHaveAttribute('data-texture-size', '768');
     await expect(stage).toHaveAttribute('data-render-mode', 'texture');

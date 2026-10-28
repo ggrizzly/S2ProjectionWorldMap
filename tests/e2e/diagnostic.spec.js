@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { selectProjection } from './projection-picker.js';
 
 test('Cahill–Keyes numerical fallback fills the projection interior', async ({ page }) => {
   await page.goto('/');
@@ -35,8 +36,8 @@ test('Cahill–Keyes numerical fallback fills the projection interior', async ({
 
 test('Collignon butterfly has valid inverse coverage across all faces', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
-  await page.selectOption('#select-a', 'collignonButterfly');
+  await expect(page.locator('#search-a')).toBeEnabled();
+  await selectProjection(page, '#select-a', 'collignonButterfly');
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-texture-size', '768');
   await page.screenshot({ path: 'test-results/collignon-butterfly.png' });
   const result = await page.evaluate(async () => {

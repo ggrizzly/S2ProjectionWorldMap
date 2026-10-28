@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { selectProjection } from './projection-picker.js';
 
 async function ready(page) {
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
+  await expect(page.locator('#search-a')).toBeEnabled();
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-render-mode', /texture|vector/);
 }
 
@@ -17,23 +18,30 @@ async function assertPainted(page, selector) {
 
 test('search by name, alias, family, and property; recover from empty results', async ({ page }) => {
   await ready(page);
-  const projectionCount = await page.locator('#select-a option').count();
   const search = page.locator('#search-a');
+  await search.click();
+  const projectionCount = await page.locator('#select-a [role="option"]').count();
   await search.fill('Cahill Hayes');
-  await expect(page.locator('#select-a option:not(:disabled)')).toHaveCount(1);
+  await expect(page.locator('#select-a [role="option"]')).toHaveCount(1);
   await search.press('Enter');
-  await expect(page.locator('#select-a')).toHaveValue('cahillKeyes');
+  await expect(search).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-projection', 'cahillKeyes');
   await expect(page.locator('#map-a .family')).toHaveText('Polyhedral');
   await search.fill('equal area cylindrical');
-  for (const id of ['hoboDyer', 'gallPeters', 'cylindricalEqualArea']) await expect(page.locator(`#select-a option[value="${id}"]`)).toBeAttached();
-  await expect(page.locator('#select-a option[value="mercator"]')).toHaveCount(0);
+  for (const id of ['hoboDyer', 'gallPeters', 'cylindricalEqualArea']) await expect(page.locator(`#select-a [data-value="${id}"]`)).toBeVisible();
+  await expect(page.locator('#select-a [data-value="mercator"]')).toHaveCount(0);
   await search.fill('not-a-projection');
-  await expect(page.locator('#select-a')).toBeDisabled();
+  await expect(search).toBeEnabled();
+  await expect(page.locator('#map-a .projection-empty')).toBeVisible();
+  await expect(search).not.toHaveAttribute('aria-activedescendant');
   await expect(page.locator('#map-a .catalog-count')).toHaveText(`0 / ${projectionCount} found`);
+  await search.press('Enter');
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-projection', 'cahillKeyes');
   await page.getByRole('button', { name: 'Clear first projection search' }).click();
-  await expect(page.locator('#select-a option:not(:disabled)')).toHaveCount(projectionCount);
-  await expect(page.locator('#select-a')).toHaveValue('cahillKeyes');
+  await expect(page.locator('#select-a [role="option"]')).toHaveCount(projectionCount);
+  await expect(page.locator('#select-a [data-value="cahillKeyes"]')).toHaveAttribute('aria-selected', 'true');
+  await search.press('Escape');
+  await expect(search).toHaveValue(/Cahill/);
 });
 
 test('Cahill–Keyes stays interactive while its texture loads; texture and overlay render', async ({ page }) => {
@@ -41,7 +49,7 @@ test('Cahill–Keyes stays interactive while its texture loads; texture and over
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await ready(page);
-  await page.selectOption('#select-a', 'cahillKeyes');
+  await selectProjection(page, '#select-a', 'cahillKeyes');
   await assertPainted(page, '#map-a .map-overlay');
   const coordinates = await page.locator('#coordinates').textContent();
   await page.locator('#map-a .map-stage').focus();
@@ -59,13 +67,14 @@ test('Cahill–Keyes stays interactive while its texture loads; texture and over
 
 test('comparison has a centered miniature globe, independent projections and zoom, shared rotation', async ({ page }) => {
   await ready(page);
-  await page.selectOption('#select-a', 'naturalEarth');
+  await selectProjection(page, '#select-a', 'naturalEarth');
   await page.getByRole('button', { name: 'Compare side by side' }).click();
   await expect(page.locator('#map-b')).toBeVisible();
-  await expect(page.locator('#select-a')).toHaveValue('naturalEarth');
-  await page.selectOption('#select-b', 'waterman');
+  await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-projection', 'naturalEarth');
+  const firstName = await page.locator('#search-a').inputValue();
+  await selectProjection(page, '#select-b', 'waterman');
   await page.locator('#search-b').fill('waterman');
-  await expect(page.locator('#search-a')).toHaveValue('');
+  await expect(page.locator('#search-a')).toHaveValue(firstName);
   const globe = await page.locator('#globe-stage').boundingBox();
   const first = await page.locator('#map-a').boundingBox();
   const second = await page.locator('#map-b').boundingBox();
@@ -91,9 +100,9 @@ test('comparison has a centered miniature globe, independent projections and zoo
   await page.screenshot({ path: 'test-results/comparison.png' });
   await page.getByRole('button', { name: 'Explore', exact: true }).click();
   await expect(page.locator('#map-b')).toBeHidden();
-  await expect(page.locator('#select-a')).toHaveValue('naturalEarth');
+  await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-projection', 'naturalEarth');
   await page.getByRole('button', { name: 'Compare side by side' }).click();
-  await expect(page.locator('#select-b')).toHaveValue('waterman');
+  await expect(page.locator('#map-b .map-stage')).toHaveAttribute('data-projection', 'waterman');
   await expect(page.getByRole('button', { name: 'Reset second map zoom' })).toHaveText('120%');
 });
 
@@ -105,7 +114,7 @@ test('all catalog projections draw textures and overlays without runtime errors'
   await ready(page);
   const catalog = await page.evaluate(() => fetch('./projections.json').then(response => response.json()));
   for (const definition of catalog) {
-    await page.selectOption('#select-a', definition.id);
+    await selectProjection(page, '#select-a', definition.id);
     await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-projection', definition.id);
     await assertPainted(page, '#map-a .map-overlay');
     await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-render-mode', 'texture', { timeout: 30_000 });
@@ -132,7 +141,7 @@ test('missing Earth images keep a usable vector map', async ({ page }) => {
   await page.route('**/land_ocean_ice_cloud_2048.jpg', route => route.abort());
   await ready(page);
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-render-mode', 'vector');
-  await page.selectOption('#select-a', 'cahillKeyes');
+  await selectProjection(page, '#select-a', 'cahillKeyes');
   await assertPainted(page, '#map-a .map-overlay');
   await page.locator('#map-a .map-stage').press('ArrowDown');
   await page.getByRole('button', { name: 'Compare side by side' }).click();

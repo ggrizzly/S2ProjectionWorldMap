@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { selectProjection } from './projection-picker.js';
 
 async function ready(page) {
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
+  await expect(page.locator('#search-a')).toBeEnabled();
 }
 
 test('Africa is initially at the front; projection changes restore recommended orientations', async ({ page }) => {
@@ -11,9 +12,9 @@ test('Africa is initially at the front; projection changes restore recommended o
   await expect(page.getByRole('checkbox', { name: 'Lock orientation' })).not.toBeChecked();
   await page.locator('#globe-stage').press('ArrowRight');
   await expect(page.locator('#coordinates')).not.toHaveText('20.0° E · 0.0° N');
-  await page.selectOption('#select-a', 'mercator');
+  await selectProjection(page, '#select-a', 'mercator');
   await expect(page.locator('#coordinates')).toHaveText('20.0° E · 0.0° N');
-  await page.selectOption('#select-a', 'cahillKeyes');
+  await selectProjection(page, '#select-a', 'cahillKeyes');
   await expect(page.locator('#coordinates')).toHaveText('20.0° W · 0.0° N');
 });
 
@@ -64,7 +65,7 @@ test('shortcuts do not fire while typing in a search box or selecting a projecti
   await expect(page.getByRole('checkbox', { name: 'Graticule' })).toBeChecked();
   await expect(page.locator('#globe-stage')).toHaveAttribute('data-zoom', '1');
   await page.locator('#search-a').press('Escape');
-  await page.locator('#select-a').focus();
+  await page.locator('#search-a').focus();
   await page.keyboard.press('g');
   await expect(page.getByRole('checkbox', { name: 'Graticule' })).toBeChecked();
 });
@@ -147,10 +148,10 @@ test('orientation lock preserves position across projection changes; unlocking r
   await expect(page.locator('#coordinates')).not.toHaveText('20.0° E · 0.0° N');
   const rotated = await page.locator('#coordinates').textContent();
   await page.getByRole('checkbox', { name: 'Lock orientation' }).check();
-  await page.selectOption('#select-a', 'collignonButterfly');
+  await selectProjection(page, '#select-a', 'collignonButterfly');
   await expect(page.locator('#coordinates')).toHaveText(rotated);
   await page.getByRole('button', { name: 'Compare side by side' }).click();
-  await page.selectOption('#select-b', 'cahillKeyes');
+  await selectProjection(page, '#select-b', 'cahillKeyes');
   await expect(page.locator('#coordinates')).toHaveText(rotated);
   await page.getByRole('checkbox', { name: 'Lock orientation' }).uncheck();
   await expect(page.locator('#coordinates')).toHaveText('20.0° W · 0.0° N');

@@ -18,7 +18,7 @@
 </head>
 <body>
   <header class="masthead">
-    <a class="brand" href="./" aria-label="Sphere home"><span class="brand-mark" aria-hidden="true">◎</span> SPHERE <span class="brand-caption">A projection atlas</span></a>
+    <a class="brand" href="./" aria-label="Sphere home"><span class="brand-mark" aria-hidden="true">◎</span> SPHERE <span class="brand-caption">A projection atlas of Earth</span></a>
     <div class="mode-switch" role="group" aria-label="View mode">
       <button id="single-mode" aria-pressed="true">Explore</button>
       <button id="compare-mode" aria-pressed="false" aria-keyshortcuts="C" title="Toggle comparison (C)">Compare side by side <span aria-hidden="true">◫</span></button>
@@ -27,7 +27,7 @@
 
   <main id="workspace" aria-label="Interactive projection explorer">
     <section id="sphere-panel" aria-label="Shared interactive globe">
-      <div class="panel-heading"><span class="eyebrow">01 / The source</span><h1>One Earth.<br>Many perspectives.</h1><p>Turn the globe. See the world differently.</p></div>
+      <div class="panel-heading"><span class="eyebrow">01 / The source</span></div>
       <div id="globe-stage" tabindex="0" role="img" aria-label="Globe. Drag or use arrow keys to rotate; scroll to zoom."></div>
       <div class="globe-footer"><span id="coordinates">20.0° E · 0.0° N</span><button id="cycle-zoom" aria-label="Cycle zoom levels" aria-keyshortcuts="Z" title="Zoom all views: 100%, 200%, 400%, 800% (Z)">100%</button><label class="orientation-lock" title="Preserve orientation when switching projections. Dragging can still rotate the globe."><input id="orientation-lock" type="checkbox"> Lock orientation</label><button id="reset-view" aria-label="Reset view" title="Reset orientation, zoom, and pan (R)" aria-keyshortcuts="R"><span aria-hidden="true">↺</span> Reset view</button></div>
     </section>
@@ -35,22 +35,22 @@
     <div id="maps">
       <section class="map-panel" id="map-a" aria-label="First projection">
         <div class="projection-controls">
-          <div class="selector-topline"><label class="eyebrow" for="search-a">02 / <span class="slot-label">The projection</span></label><span class="catalog-count">Loading catalog…</span></div>
-          <div class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="search-a" placeholder="Search projections, families, properties…" autocomplete="off" aria-controls="select-a"><button class="clear-search" type="button" aria-label="Clear first projection search" hidden>×</button></div>
-          <select id="select-a" aria-label="First projection" size="1" disabled><option>Loading projections…</option></select>
-          <div class="projection-meta"><span class="family"></span><span class="property"></span></div>
-          <p class="projection-description" hidden></p>
+          <div class="selector-topline"><label class="eyebrow" for="search-a">02 / <span class="slot-label">The projection</span></label><div class="projection-meta"><span class="family"></span><span class="property"></span></div><details class="projection-details" hidden><summary aria-label="About first projection" title="About this projection"><span aria-hidden="true">ⓘ</span></summary><p class="projection-description"></p></details></div>
+          <div class="projection-picker">
+            <div class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="search-a" role="combobox" aria-label="First projection" aria-autocomplete="list" aria-expanded="false" aria-controls="select-a" placeholder="Loading projections…" autocomplete="off" spellcheck="false" disabled><button class="clear-search" type="button" tabindex="-1" aria-label="Clear first projection search" hidden>×</button><button class="toggle-projections" type="button" tabindex="-1" aria-label="Show first projection choices" aria-controls="select-a" aria-expanded="false" disabled><span aria-hidden="true">⌄</span></button></div>
+            <div class="projection-popup" hidden><div id="select-a" class="projection-options" role="listbox" aria-label="First projection choices"></div><p class="projection-empty" hidden>No matching projections. Try another name, family, or property.</p><div class="catalog-count" role="status" aria-live="polite"></div></div>
+          </div>
         </div>
         <div class="map-stage" tabindex="0" role="img" aria-label="First map. Drag or use arrows to rotate; when zoomed, drag or arrows pan. Shift-drag rotates. Alt-drag always pans. Scroll zooms at the cursor."><canvas class="map-overlay"></canvas><div class="map-status" role="status">Loading atlas…</div></div>
         <div class="map-footer"><span class="render-mode">VECTOR PREVIEW</span><div class="zoom-controls" role="group" aria-label="First map zoom"><button data-zoom="out" aria-label="Zoom out first map">−</button><button data-zoom="reset" aria-label="Reset first map zoom">100%</button><button data-zoom="in" aria-label="Zoom in first map">+</button></div></div>
       </section>
       <section class="map-panel" id="map-b" aria-label="Second projection" hidden>
         <div class="projection-controls">
-          <div class="selector-topline"><label class="eyebrow" for="search-b">03 / Projection B</label><span class="catalog-count">Loading catalog…</span></div>
-          <div class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="search-b" placeholder="Search projections, families, properties…" autocomplete="off" aria-controls="select-b"><button class="clear-search" type="button" aria-label="Clear second projection search" hidden>×</button></div>
-          <select id="select-b" aria-label="Second projection" size="1" disabled><option>Loading projections…</option></select>
-          <div class="projection-meta"><span class="family"></span><span class="property"></span></div>
-          <p class="projection-description" hidden></p>
+          <div class="selector-topline"><label class="eyebrow" for="search-b">03 / Projection B</label><div class="projection-meta"><span class="family"></span><span class="property"></span></div><details class="projection-details" hidden><summary aria-label="About second projection" title="About this projection"><span aria-hidden="true">ⓘ</span></summary><p class="projection-description"></p></details></div>
+          <div class="projection-picker">
+            <div class="search-field"><span aria-hidden="true">⌕</span><input type="search" id="search-b" role="combobox" aria-label="Second projection" aria-autocomplete="list" aria-expanded="false" aria-controls="select-b" placeholder="Loading projections…" autocomplete="off" spellcheck="false" disabled><button class="clear-search" type="button" tabindex="-1" aria-label="Clear second projection search" hidden>×</button><button class="toggle-projections" type="button" tabindex="-1" aria-label="Show second projection choices" aria-controls="select-b" aria-expanded="false" disabled><span aria-hidden="true">⌄</span></button></div>
+            <div class="projection-popup" hidden><div id="select-b" class="projection-options" role="listbox" aria-label="Second projection choices"></div><p class="projection-empty" hidden>No matching projections. Try another name, family, or property.</p><div class="catalog-count" role="status" aria-live="polite"></div></div>
+          </div>
         </div>
         <div class="map-stage" tabindex="0" role="img" aria-label="Second map. Drag or use arrows to rotate; when zoomed, drag or arrows pan. Shift-drag rotates. Alt-drag always pans. Scroll zooms at the cursor."><canvas class="map-overlay"></canvas><div class="map-status" role="status">Loading atlas…</div></div>
         <div class="map-footer"><span class="render-mode">VECTOR PREVIEW</span><div class="zoom-controls" role="group" aria-label="Second map zoom"><button data-zoom="out" aria-label="Zoom out second map">−</button><button data-zoom="reset" aria-label="Reset second map zoom">100%</button><button data-zoom="in" aria-label="Zoom in second map">+</button></div></div>
