@@ -295,15 +295,172 @@ function inverseRotationMatrix(rotation) {
   );
 }
 
+// Editable combobox: results float over the map, and focus stays in the input.
+class ProjectionPicker {
+  constructor(panel, onChange) {
+    this.root = panel.querySelector('.projection-picker');
+    this.details = panel.querySelector('.projection-details');
+    this.details.addEventListener('keydown', event => {
+      if (event.key === 'Escape') { event.preventDefault(); this.details.open = false; }
+    });
+    this.input = this.root.querySelector('input');
+    this.popup = this.root.querySelector('.projection-popup');
+    this.list = this.root.querySelector('[role="listbox"]');
+    this.clear = this.root.querySelector('.clear-search');
+    this.toggle = this.root.querySelector('.toggle-projections');
+    this.onChange = onChange;
+    this.isOpen = false;
+    this.options = [];
+    this.input.addEventListener('focus', () => this.open());
+    this.input.addEventListener('click', () => this.open());
+    this.input.addEventListener('input', () => {
+      if (!this.isOpen) this.open(false);
+      else this.render(this.input.value);
+    });
+    this.input.addEventListener('keydown', event => this.keydown(event));
+    this.root.addEventListener('mousedown', event => {
+      if (event.target.closest('button, [role="option"]')) event.preventDefault();
+    });
+    this.root.addEventListener('focusout', event => {
+      if (!this.root.contains(event.relatedTarget)) this.close();
+    });
+    this.toggle.addEventListener('click', () => {
+      if (this.isOpen) this.close();
+      else { this.open(); this.input.focus(); }
+    });
+    this.clear.addEventListener('click', () => {
+      this.input.value = '';
+      this.render('');
+      this.input.focus();
+    });
+    this.list.addEventListener('click', event => {
+      const option = event.target.closest('[role="option"]');
+      if (option) this.onChange(option.dataset.value);
+    });
+    document.addEventListener('pointerdown', event => {
+      if (this.isOpen && !this.root.contains(event.target)) this.close();
+      if (!this.details.contains(event.target)) this.details.open = false;
+    });
+    const reposition = () => { if (this.isOpen) this.position(); };
+    window.addEventListener('resize', reposition);
+    window.visualViewport?.addEventListener('resize', reposition);
+  }
+
+  setSelection(definition) {
+    this.definition = definition;
+    this.input.disabled = this.toggle.disabled = false;
+    this.input.title = definition.name;
+    this.input.placeholder = definition.name;
+    this.close();
+  }
+
+  position() {
+    const bounds = this.root.getBoundingClientRect();
+    const viewport = window.visualViewport;
+    const top = viewport?.offsetTop || 0;
+    const bottom = top + (viewport?.height || innerHeight);
+    const above = bounds.top - top, below = bottom - bounds.bottom;
+    const upwards = below < 200 && above > below;
+    this.root.dataset.side = upwards ? 'above' : 'below';
+    this.root.style.setProperty('--picker-space', `${Math.max(100, (upwards ? above : below) - 12)}px`);
+  }
+
+  open(clear = true) {
+    if (this.isOpen || this.input.disabled) return;
+    this.isOpen = true;
+    this.details.open = false;
+    if (clear) this.input.value = '';
+    this.popup.hidden = false;
+    this.input.placeholder = 'Search projections…';
+    this.input.setAttribute('aria-expanded', 'true');
+    this.toggle.setAttribute('aria-expanded', 'true');
+    this.position();
+    this.render(this.input.value);
+  }
+
+  close() {
+    this.isOpen = false;
+    this.popup.hidden = true;
+    this.input.value = this.definition?.name || '';
+    this.input.setAttribute('aria-expanded', 'false');
+    this.input.removeAttribute('aria-activedescendant');
+    this.toggle.setAttribute('aria-expanded', 'false');
+    this.clear.hidden = true;
+  }
+
+  render(query) {
+    const matching = catalog.filter(definition => matchesProjection(definition, query));
+    this.list.replaceChildren();
+    for (const family of [...new Set(matching.map(item => item.family))].sort()) {
+      const group = document.createElement('div');
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', family);
+      const heading = document.createElement('div');
+      heading.className = 'projection-group';
+      heading.textContent = family;
+      heading.setAttribute('aria-hidden', 'true');
+      group.append(heading);
+      for (const definition of matching.filter(item => item.family === family)) {
+        const option = document.createElement('div');
+        option.id = `${this.list.id}-${definition.id}`;
+        option.dataset.value = definition.id;
+        option.setAttribute('role', 'option');
+        option.setAttribute('aria-selected', String(definition.id === this.definition.id));
+        const name = document.createElement('span');
+        name.textContent = definition.name;
+        const property = document.createElement('span');
+        property.className = 'option-property';
+        property.textContent = definition.property;
+        option.append(name, property);
+        group.append(option);
+      }
+      this.list.append(group);
+    }
+    this.options = [...this.list.querySelectorAll('[role="option"]')];
+    this.root.querySelector('.projection-empty').hidden = matching.length > 0;
+    this.root.querySelector('.catalog-count').textContent = query ? `${matching.length} / ${catalog.length} found` : `${catalog.length} projections`;
+    this.clear.hidden = !query;
+    const current = query ? 0 : this.options.findIndex(option => option.dataset.value === this.definition.id);
+    this.highlight(Math.max(0, current));
+  }
+
+  highlight(index) {
+    this.active = index;
+    this.options.forEach((option, i) => { option.dataset.active = String(i === index); });
+    const option = this.options[index];
+    if (option) {
+      this.input.setAttribute('aria-activedescendant', option.id);
+      option.scrollIntoView({ block: 'nearest' });
+    } else this.input.removeAttribute('aria-activedescendant');
+  }
+
+  keydown(event) {
+    if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === 'Escape' && this.isOpen) {
+      event.preventDefault();
+      this.close();
+    } else if (event.key === 'Tab') this.close();
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!this.isOpen) this.open();
+      else if (this.options.length) this.highlight((this.active + (event.key === 'ArrowDown' ? 1 : -1) + this.options.length) % this.options.length);
+    } else if (this.isOpen && (event.key === 'Home' || event.key === 'End')) {
+      event.preventDefault();
+      this.highlight(event.key === 'Home' ? 0 : this.options.length - 1);
+    } else if (event.key === 'Enter' && this.isOpen) {
+      event.preventDefault();
+      if (this.options[this.active]) this.onChange(this.options[this.active].dataset.value);
+    }
+  }
+}
+
 class MapView {
   constructor(id, initial) {
     this.panel = document.getElementById(id);
     this.stage = this.panel.querySelector('.map-stage');
     this.overlay = this.panel.querySelector('.map-overlay');
     this.context = this.overlay.getContext('2d');
-    this.select = this.panel.querySelector('select');
-    this.search = this.panel.querySelector('input[type="search"]');
-    this.clear = this.panel.querySelector('.clear-search');
+    this.picker = new ProjectionPicker(this.panel, id => this.setProjection(id));
     this.status = this.panel.querySelector('.map-status');
     this.zoom = 1;
     this.pan = [0, 0];
@@ -330,18 +487,6 @@ class MapView {
     } catch {
       this.renderer = null;
     }
-    this.search.addEventListener('input', () => this.filter());
-    this.clear.addEventListener('click', () => {
-      this.search.value = ''; this.filter(); this.search.focus();
-    });
-    this.search.addEventListener('keydown', event => {
-      if (event.key === 'Escape') { this.search.value = ''; this.filter(); }
-      if (event.key === 'Enter' && !this.select.disabled) {
-        const first = [...this.select.options].find(option => !option.disabled);
-        if (first) this.setProjection(first.value);
-      }
-    });
-    this.select.addEventListener('change', () => this.setProjection(this.select.value));
     this.panel.addEventListener('focusin', () => { activeView = this; });
     makeInteractive(this.stage, {
       zoom: (factor, event) => {
@@ -369,31 +514,6 @@ class MapView {
     this.setProjection(initial, false);
   }
 
-  filter() {
-    const matching = catalog.filter(definition => matchesProjection(definition, this.search.value));
-    this.select.replaceChildren();
-    const families = [...new Set(matching.map(definition => definition.family))].sort();
-    for (const family of families) {
-      const group = document.createElement('optgroup');
-      group.label = family;
-      for (const definition of matching.filter(item => item.family === family)) {
-        group.append(new Option(definition.name, definition.id));
-      }
-      this.select.append(group);
-    }
-    const selectedVisible = matching.some(definition => definition.id === this.definition.id);
-    if (matching.length && !selectedVisible) {
-      const current = new Option(`Current: ${this.definition.name}`, this.definition.id, true, true);
-      current.disabled = true;
-      this.select.prepend(current);
-    }
-    if (!matching.length) this.select.append(new Option('No matching projections', ''));
-    this.select.disabled = !matching.length;
-    if (matching.length) this.select.value = this.definition.id;
-    this.clear.hidden = !this.search.value;
-    this.panel.querySelector('.catalog-count').textContent = this.search.value ? `${matching.length} / ${catalog.length} found` : `${catalog.length} projections`;
-  }
-
   setProjection(id, load = true) {
     const definition = definitions.get(id);
     if (!definition) return;
@@ -411,11 +531,13 @@ class MapView {
     this.dragInverter = null;
     this.pickContext ||= document.createElement('canvas').getContext('2d');
     this.pickOutline = new Path2D(geo.geoPath(this.canonical)(SPHERE));
-    this.filter();
+    this.picker.setSelection(definition);
     this.panel.querySelector('.family').textContent = definition.family;
     this.panel.querySelector('.property').textContent = definition.property;
     const description = this.panel.querySelector('.projection-description');
-    description.hidden = !definition.description;
+    const details = this.panel.querySelector('.projection-details');
+    details.hidden = !definition.description;
+    details.open = false;
     description.textContent = definition.description || '';
     this.stage.dataset.projection = id;
     this.stage.dataset.renderMode = 'pending';

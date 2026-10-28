@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { selectProjection } from './projection-picker.js';
 
 test('unavailable WebGL keeps both maps and a vector globe interactive', async ({ page }) => {
   await page.addInitScript(() => {
@@ -8,10 +9,10 @@ test('unavailable WebGL keeps both maps and a vector globe interactive', async (
     };
   });
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
+  await expect(page.locator('#search-a')).toBeEnabled();
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-render-mode', 'vector');
   await page.getByRole('button', { name: 'Compare side by side' }).click();
-  await page.selectOption('#select-b', 'cahillKeyes');
+  await selectProjection(page, '#select-b', 'cahillKeyes');
   await expect(page.locator('#map-b .map-stage')).toHaveAttribute('data-render-mode', 'vector');
   const before = await page.locator('#coordinates').textContent();
   await page.locator('#globe-stage').press('ArrowLeft');
@@ -22,10 +23,10 @@ test('unavailable WebGL keeps both maps and a vector globe interactive', async (
 test('failed texture workers leave vector maps and report the fallback', async ({ page }) => {
   await page.route('**/texture-worker.js', route => route.abort());
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
+  await expect(page.locator('#search-a')).toBeEnabled();
   await expect(page.locator('#map-a .map-status')).toContainText('Texture worker unavailable');
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-render-mode', 'vector');
-  await page.selectOption('#select-a', 'cahillKeyes');
+  await selectProjection(page, '#select-a', 'cahillKeyes');
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-render-mode', 'vector');
   const before = await page.locator('#coordinates').textContent();
   await page.locator('#map-a .map-stage').press('ArrowUp');
@@ -36,12 +37,12 @@ test('rapid selections and identical comparison projections do not apply stale l
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
-  await page.selectOption('#select-a', 'cahillKeyes');
-  await page.selectOption('#select-a', 'authaGraph');
-  await page.selectOption('#select-a', 'equalEarth');
+  await expect(page.locator('#search-a')).toBeEnabled();
+  await selectProjection(page, '#select-a', 'cahillKeyes');
+  await selectProjection(page, '#select-a', 'authaGraph');
+  await selectProjection(page, '#select-a', 'equalEarth');
   await page.getByRole('button', { name: 'Compare side by side' }).click();
-  await page.selectOption('#select-b', 'equalEarth');
+  await selectProjection(page, '#select-b', 'equalEarth');
   for (const id of ['a', 'b']) {
     await expect(page.locator(`#map-${id} .map-stage`)).toHaveAttribute('data-projection', 'equalEarth');
     await expect(page.locator(`#map-${id} .map-stage`)).toHaveAttribute('data-render-mode', 'texture');
@@ -59,10 +60,10 @@ test('rapid selections and identical comparison projections do not apply stale l
 
 test('reselecting a cached preview resumes detailed texture preparation', async ({ page }) => {
   await page.goto('/');
-  await expect(page.locator('#select-a')).toBeEnabled();
-  await page.selectOption('#select-a', 'cahillKeyes');
+  await expect(page.locator('#search-a')).toBeEnabled();
+  await selectProjection(page, '#select-a', 'cahillKeyes');
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-texture-size', '256');
-  await page.selectOption('#select-a', 'mercator');
-  await page.selectOption('#select-a', 'cahillKeyes');
+  await selectProjection(page, '#select-a', 'mercator');
+  await selectProjection(page, '#select-a', 'cahillKeyes');
   await expect(page.locator('#map-a .map-stage')).toHaveAttribute('data-texture-size', '768', { timeout: 60_000 });
 });
