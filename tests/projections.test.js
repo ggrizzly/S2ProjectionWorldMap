@@ -31,6 +31,24 @@ test('zoom keeps the projected point beneath the cursor fixed', () => {
   assert.deepEqual(zoomedPan(pan, 2, 4, center), [100, -40]);
 });
 
+test('fractional viewports preserve the delivered wheel point (631px CI regression)', () => {
+  const center = [400, 631 / 2];
+  const requested = [240, 631 * 0.35];
+  const delivered = [240, 220];
+  const oldZoom = 1.2, newZoom = oldZoom * 1.08;
+  const pan = zoomedPan([0, 0], oldZoom, newZoom, center, delivered);
+  for (let axis = 0; axis < 2; axis++) {
+    const before = (delivered[axis] - center[axis]) / oldZoom;
+    const after = (delivered[axis] - center[axis] - pan[axis]) / newZoom;
+    assert.ok(Math.abs(after - before) < 1e-12);
+  }
+  // Using the requested 220.85px instead of the delivered 220px reproduces
+  // the reported CI error, even though zooming at the real cursor is correct.
+  const nominalBefore = (requested[1] - center[1]) / oldZoom;
+  const nominalAfter = (requested[1] - center[1] - pan[1]) / newZoom;
+  assert.ok(Math.abs(Math.abs(nominalAfter - nominalBefore) - 0.05246913580245405) < 1e-12);
+});
+
 const catalog = JSON.parse(await readFile(new URL('../projections.json', import.meta.url), 'utf8'));
 const libraries = { geo, extended, polyhedral };
 

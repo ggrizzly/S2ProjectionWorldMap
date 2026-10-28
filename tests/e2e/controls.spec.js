@@ -94,24 +94,44 @@ test('zoomed maps pan independently; shift-drag rotates instead; reset clears pa
 
 test('wheel zoom anchors to the cursor and button zoom preserves the panned viewport center', async ({ page }) => {
   await ready(page);
-  await page.getByRole('button', { name: 'Zoom in first map', exact: true }).click();
   const stage = page.locator('#map-a .map-stage');
-  await expect(stage).toHaveAttribute('data-zoom', '1.2');
-  const rect = await stage.boundingBox();
-  const anchor = [rect.width * 0.3, rect.height * 0.35];
-  await page.mouse.move(rect.x + anchor[0], rect.y + anchor[1]);
-  await page.mouse.wheel(0, -120);
-  await expect.poll(() => stage.getAttribute('data-zoom')).not.toBe('1.2');
-  const state = await stage.evaluate(element => ({ zoom: +element.dataset.zoom, pan: [+element.dataset.panX, +element.dataset.panY] }));
-  for (let axis = 0; axis < 2; axis++) {
-    const center = [rect.width / 2, rect.height / 2][axis];
-    expect((anchor[axis] - center - state.pan[axis]) / state.zoom).toBeCloseTo((anchor[axis] - center) / 1.2, 1);
+  for (const fractions of [[0.3, 0.35], [0.427, 0.613]]) {
+    await page.getByRole('button', { name: 'Reset first map zoom' }).click();
+    await expect(stage).toHaveAttribute('data-zoom', '1');
+    await page.getByRole('button', { name: 'Zoom in first map', exact: true }).click();
+    await expect(stage).toHaveAttribute('data-zoom', '1.2');
+    const rect = await stage.boundingBox();
+    const wheelEvent = await stage.evaluateHandle(element => {
+      const sample = { anchor: [0, 0], center: [0, 0], zoom: 0, pan: [0, 0] };
+      element.addEventListener('wheel', event => {
+        const bounds = element.getBoundingClientRect();
+        sample.anchor = [event.clientX - bounds.left, event.clientY - bounds.top];
+        sample.center = [bounds.width / 2, bounds.height / 2];
+        sample.zoom = +element.dataset.zoom;
+        sample.pan = [+element.dataset.panX, +element.dataset.panY];
+      }, { once: true, capture: true, passive: true });
+      return sample;
+    });
+    await page.mouse.move(rect.x + rect.width * fractions[0], rect.y + rect.height * fractions[1]);
+    await page.mouse.wheel(0, -120);
+    await expect.poll(() => stage.getAttribute('data-zoom')).not.toBe('1.2');
+    const before = await wheelEvent.jsonValue();
+    await wheelEvent.dispose();
+    expect(before.zoom).toBe(1.2);
+    const state = await stage.evaluate(element => ({ zoom: +element.dataset.zoom, pan: [+element.dataset.panX, +element.dataset.panY] }));
+    // Chromium can round fractional mouse requests to integer wheel coordinates.
+    // Verify the point actually delivered to the app, without relaxing accuracy.
+    for (let axis = 0; axis < 2; axis++) {
+      const pointBefore = (before.anchor[axis] - before.center[axis] - before.pan[axis]) / before.zoom;
+      const pointAfter = (before.anchor[axis] - before.center[axis] - state.pan[axis]) / state.zoom;
+      expect(pointAfter).toBeCloseTo(pointBefore, 8);
+    }
+    await page.getByRole('button', { name: 'Zoom in first map', exact: true }).click();
+    await expect.poll(() => stage.getAttribute('data-zoom')).not.toBe(String(state.zoom));
+    const newPan = await stage.evaluate(element => [+element.dataset.panX, +element.dataset.panY]);
+    expect(newPan[0]).toBeCloseTo(state.pan[0] * 1.2, 8);
+    expect(newPan[1]).toBeCloseTo(state.pan[1] * 1.2, 8);
   }
-  await page.getByRole('button', { name: 'Zoom in first map', exact: true }).click();
-  await expect.poll(() => stage.getAttribute('data-zoom')).not.toBe(String(state.zoom));
-  const newPan = await stage.evaluate(element => [+element.dataset.panX, +element.dataset.panY]);
-  expect(newPan[0]).toBeCloseTo(state.pan[0] * 1.2, 1);
-  expect(newPan[1]).toBeCloseTo(state.pan[1] * 1.2, 1);
 });
 
 test('Alt-drag pans even at 100 percent without changing the globe orientation', async ({ page }) => {
