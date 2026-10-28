@@ -99,33 +99,3 @@ Workflow tests use the `yaml` parser to validate deployment rules and dry-run pa
 Browser tests use the live CDN dependencies and require internet access. Certificate errors are not bypassed.
 The local test server uses loopback HTTP. The deployed site receives a separate HTTPS check.
 Screenshots appear in `test-results/`.
-
-## GitHub Pages deployment
-
-`.github/workflows/pages.yml` tests pull requests and pushes to `main`. Only successful `main` runs can deploy.
-Manual runs on `main` can also deploy. No personal access token or manually configured secret is required.
-
-The workflow installs Node.js 24, locked npm dependencies, Chromium, and Linux browser dependencies.
-It runs `./scripts/test.sh` before packaging an explicit list of public files into `_site/`.
-Development files, dependencies, and test results are not part of the website artifact.
-New public assets need an explicit entry in the packaging step.
-
-Only the separate deployment job receives Pages-write and OIDC permissions. Official Actions use pinned commit SHAs.
-After deployment, the workflow checks the published HTTPS URL with normal certificate validation and HTTPS-only redirects.
-
-### One-time settings on GitHub
-
-1. Set **Settings → Pages → Source** to **GitHub Actions**.
-2. Confirm **Settings → Pages → Enforce HTTPS** is enabled. GitHub usually enforces HTTPS automatically for `github.io` sites.
-3. Restrict the **github-pages** deployment environment to the `main` branch under **Settings → Environments**.
-4. Optionally protect `main` and require the **Test and package** status check before merging.
-
-Commit and push the workflow to `main`, or merge its pull request, to start deployment.
-The deployed URL appears in the workflow's deployment environment and the repository's Pages settings.
-No custom domain or DNS change is needed for `https://<username>.github.io/<repository>/`.
-
-### First-stage security scope
-
-The workflow controls tests, artifact contents, deployment permissions, and the post-deployment TLS check.
-The **Enforce HTTPS** setting controls HTTP-to-HTTPS enforcement. A workflow cannot configure arbitrary GitHub Pages response headers.
-This first stage retains the existing runtime CDN dependencies. Local vendoring and a Content Security Policy remain separate hardening work.
